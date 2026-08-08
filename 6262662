@@ -1,0 +1,278 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+
+local player = Players.LocalPlayer
+
+-- ฟังก์ชันซ่อน UI เพื่อกันระบบ Anti-cheat เบื้องต้นตรวจจับ
+local function getSecureParent()
+    local success, parent = pcall(function() return gethui() end)
+    if success and parent then return parent end
+    success, parent = pcall(function() return CoreGui end)
+    if success and parent then return parent end
+    return player:WaitForChild("PlayerGui")
+end
+
+-- ==========================================
+-- สร้างหน้าต่าง UI
+-- ==========================================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DioCheatMenu"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = getSecureParent()
+
+-- ปุ่มเปิด/ปิด UI (อยู่ด้านข้างจอ)
+local toggleSidebar = Instance.new("TextButton")
+toggleSidebar.Size = UDim2.new(0, 40, 0, 40)
+toggleSidebar.Position = UDim2.new(0, 0, 0.5, -20)
+toggleSidebar.BackgroundColor3 = Color3.fromRGB(200, 150, 0)
+toggleSidebar.Text = "MENU"
+toggleSidebar.Font = Enum.Font.SourceSansBold
+toggleSidebar.TextColor3 = Color3.fromRGB(0, 0, 0)
+toggleSidebar.Parent = screenGui
+
+-- หน้าต่างเมนูหลัก
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 300, 0, 420)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -210)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BorderSizePixel = 2
+mainFrame.BorderColor3 = Color3.fromRGB(200, 150, 0)
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+
+-- ภาพพื้นหลัง Dio
+local bgImage = Instance.new("ImageLabel")
+bgImage.Size = UDim2.new(1, 0, 1, 0)
+bgImage.BackgroundTransparency = 1
+bgImage.Image = "rbxassetid://13214536531" -- ID ภาพ Dio (สามารถเปลี่ยนได้)
+bgImage.ImageTransparency = 0.6 -- ปรับความโปร่งใสไม่ให้บังปุ่ม
+bgImage.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundTransparency = 0.5
+title.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+title.Text = "ZA WARUDO MENU"
+title.TextColor3 = Color3.fromRGB(255, 215, 0)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.Parent = mainFrame
+
+-- ฟังก์ชันเปิด/ปิดเมนู
+toggleSidebar.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- ==========================================
+-- ระบบสร้างปุ่ม UI
+-- ==========================================
+local uiListLayout = Instance.new("UIListLayout")
+uiListLayout.Parent = mainFrame
+uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+uiListLayout.Padding = UDim.new(0, 5)
+
+-- เว้นว่างหัวข้อ
+local padding = Instance.new("Frame")
+padding.Size = UDim2.new(1, 0, 0, 30)
+padding.BackgroundTransparency = 1
+padding.Parent = mainFrame
+
+local function createToggle(text, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.9, 0, 0, 35)
+    btn.Position = UDim2.new(0.05, 0, 0, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    btn.BackgroundTransparency = 0.3
+    btn.BorderColor3 = Color3.fromRGB(200, 150, 0)
+    btn.Text = text .. " [ OFF ]"
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 14
+    
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, 0, 0, 35)
+    container.BackgroundTransparency = 1
+    btn.Parent = container
+    container.Parent = mainFrame
+
+    local state = false
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        btn.Text = text .. (state and " [ ON ]" or " [ OFF ]")
+        btn.TextColor3 = state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 255, 255)
+        callback(state)
+    end)
+    return btn
+end
+
+local function createInput(placeholder, defaultVal, callback)
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.new(0.9, 0, 0, 30)
+    box.Position = UDim2.new(0.05, 0, 0, 0)
+    box.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    box.BackgroundTransparency = 0.3
+    box.BorderColor3 = Color3.fromRGB(200, 150, 0)
+    box.PlaceholderText = placeholder
+    box.Text = tostring(defaultVal)
+    box.TextColor3 = Color3.fromRGB(255, 215, 0)
+    box.Font = Enum.Font.SourceSansBold
+    box.TextSize = 14
+    
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, 0, 0, 30)
+    container.BackgroundTransparency = 1
+    box.Parent = container
+    container.Parent = mainFrame
+
+    box.FocusLost:Connect(function()
+        local val = tonumber(box.Text)
+        if val then callback(val) end
+    end)
+    return box
+end
+
+-- ==========================================
+-- ฟังก์ชันโปร (อัปเดตค่าตลอดเวลาเพื่อกันบัคตอนเกิดใหม่)
+-- ==========================================
+
+local Toggles = {
+    Invis = false,
+    ESP = false,
+    Noclip = false,
+    FastRun = false,
+    InfJump = false,
+    HighJump = false
+}
+local Settings = {
+    RunSpeed = 100,
+    JumpPower = 150
+}
+
+-- [1] ล่องหน (Invisibility)
+createToggle("ล่องหน (Invisibility)", function(state)
+    Toggles.Invis = state
+end)
+
+-- [2] เดินทะลุกำแพง (Noclip)
+createToggle("เดินทะลุกำแพง (Noclip)", function(state)
+    Toggles.Noclip = state
+end)
+
+-- [3] วิ่งไว (Fast Run)
+createToggle("เปิดวิ่งไว", function(state)
+    Toggles.FastRun = state
+end)
+
+-- [4] กระโดดสูง (High Jump + ปรับได้)
+createToggle("เปิดกระโดดสูง", function(state)
+    Toggles.HighJump = state
+end)
+createInput("ปรับความสูง (JumpPower)", Settings.JumpPower, function(val)
+    Settings.JumpPower = val
+end)
+
+-- [5] กระโดดไม่จำกัด (Infinite Jump)
+createToggle("กระโดดไม่จำกัด", function(state)
+    Toggles.InfJump = state
+end)
+UserInputService.JumpRequest:Connect(function()
+    if Toggles.InfJump and player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+-- [6] มองเห็น (ESP - ฆาตกรแดง / ผู้เล่นเขียว)
+createToggle("โปรมองเห็น (ESP)", function(state)
+    Toggles.ESP = state
+    if not state then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p.Character and p.Character:FindFirstChild("DioESP") then
+                p.Character.DioESP:Destroy()
+            end
+        end
+    end
+end)
+
+-- ==========================================
+-- ระบบ Loop ทำงานเพื่อแก้บัคเวลาตาย/เกิดใหม่
+-- ==========================================
+RunService.Stepped:Connect(function()
+    local char = player.Character
+    if not char then return end
+    local hum = char:FindFirstChild("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+
+    -- ล่องหน
+    if Toggles.Invis then
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") or part:IsA("Decal") then
+                part.Transparency = 1
+            end
+        end
+    end
+
+    -- ทะลุกำแพง
+    if Toggles.Noclip then
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                part.CanCollide = false
+            end
+        end
+    end
+
+    -- วิ่งไว และ กระโดดสูง (อัปเดตตลอดเวลาแม้เกิดใหม่)
+    if hum then
+        if Toggles.FastRun then
+            hum.WalkSpeed = 100 -- ค่าความเร็ว (แก้ตรงนี้ได้)
+        else
+            if hum.WalkSpeed > 50 then hum.WalkSpeed = 16 end -- คืนค่าปกติ
+        end
+
+        if Toggles.HighJump then
+            hum.UseJumpPower = true
+            hum.JumpPower = Settings.JumpPower
+        else
+            if hum.JumpPower > 50 then hum.JumpPower = 50 end -- คืนค่าปกติ
+        end
+    end
+end)
+
+-- Loop สำหรับอัปเดต ESP
+RunService.RenderStepped:Connect(function()
+    if not Toggles.ESP then return end
+    
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local char = p.Character
+            local highlight = char:FindFirstChild("DioESP")
+            
+            if not highlight then
+                highlight = Instance.new("Highlight")
+                highlight.Name = "DioESP"
+                highlight.Parent = char
+            end
+            
+            -- ตรวจสอบตัวร้าย (เช็คจากมีด หรือ ชื่อทีม)
+            local isKiller = false
+            local hasWeapon = char:FindFirstChild("Knife") or char:FindFirstChild("Melee") or (p:FindFirstChild("Backpack") and (p.Backpack:FindFirstChild("Knife") or p.Backpack:FindFirstChild("Melee")))
+            local isKillerTeam = p.Team and (p.Team.Name:lower():match("killer") or p.Team.Name:lower():match("murder"))
+            
+            if hasWeapon or isKillerTeam then
+                isKiller = true
+            end
+
+            -- ตั้งสี ESP
+            if isKiller then
+                highlight.FillColor = Color3.fromRGB(255, 0, 0) -- สีแดง
+                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+            else
+                highlight.FillColor = Color3.fromRGB(0, 255, 0) -- สีเขียว
+                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+            end
+        end
+    end
+end)
